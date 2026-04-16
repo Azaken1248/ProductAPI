@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements UserService {
 	
 	@Autowired
-    private final UserRepository userRepository;
+    private UserRepository userRepository;
     
 	
     @Override

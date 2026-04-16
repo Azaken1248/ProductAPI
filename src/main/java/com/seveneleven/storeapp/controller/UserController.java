@@ -18,7 +18,7 @@ import java.util.List;
 public class UserController {
 	
 	@Autowired
-    private final UserService userService;
+    private UserService userService;
 
     // POST /api/users — Create user
     @PostMapping
