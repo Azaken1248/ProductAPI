@@ -1,0 +1,119 @@
+package com.seveneleven.storeapp.service;
+
+import com.seveneleven.storeapp.exceptions.DuplicateEmailException;
+import com.seveneleven.storeapp.exceptions.ResourceNotFoundException;
+import com.seveneleven.storeapp.model.dto.UserRequestDTO;
+import com.seveneleven.storeapp.model.dto.UserResponseDTO;
+import com.seveneleven.storeapp.model.entity.User;
+import com.seveneleven.storeapp.repository.UserRepository;
+import com.seveneleven.storeapp.utils.PasswordHasher;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class UserServiceImpl implements UserService {
+	
+	@Autowired
+    private final UserRepository userRepository;
+    
+	
+    @Override
+    public UserResponseDTO createUser(UserRequestDTO requestDTO) {
+        log.debug("Creating user with email: {}", requestDTO.getEmail());
+
+        if (userRepository.existsByEmail(requestDTO.getEmail())) {
+            throw new DuplicateEmailException("Email already registered: " + requestDTO.getEmail());
+        }
+
+        User user = User.builder()
+                .firstName(requestDTO.getFirstName())
+                .lastName(requestDTO.getLastName())
+                .email(requestDTO.getEmail())
+                .password(PasswordHasher.hashPasswordToSHA256(requestDTO.getPassword()))
+                .phone(requestDTO.getPhone())
+                .role(requestDTO.getRole().toUpperCase())
+                .status(requestDTO.getStatus() != null
+                        ? requestDTO.getStatus().toUpperCase()
+                        : "ACTIVE")
+                .build();
+
+        User saved = userRepository.save(user);
+        log.info("User created with ID: {}", saved.getId());
+        return mapToResponse(saved);
+    }
+
+    @Override
+    public List<UserResponseDTO> getAllUsers() {
+        log.debug("Fetching all users");
+        return userRepository.findAll()
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public UserResponseDTO getUserById(Long userId) {
+        log.debug("Fetching user with ID: {}", userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
+        return mapToResponse(user);
+    }
+
+    @Override
+    public UserResponseDTO updateUser(Long userId, UserRequestDTO requestDTO) {
+        log.debug("Updating user with ID: {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
+
+        if (!user.getEmail().equals(requestDTO.getEmail())
+                && userRepository.existsByEmail(requestDTO.getEmail())) {
+            throw new DuplicateEmailException("Email already in use: " + requestDTO.getEmail());
+        }
+
+        user.setFirstName(requestDTO.getFirstName());
+        user.setLastName(requestDTO.getLastName());
+        user.setEmail(requestDTO.getEmail());
+        user.setPassword(requestDTO.getPassword());
+        user.setPhone(requestDTO.getPhone());
+        user.setRole(requestDTO.getRole().toUpperCase());
+        user.setStatus(requestDTO.getStatus() != null
+                ? requestDTO.getStatus().toUpperCase()
+                : user.getStatus());
+
+        User updated = userRepository.save(user);
+        log.info("User updated with ID: {}", updated.getId());
+        return mapToResponse(updated);
+    }
+
+    @Override
+    public void deleteUser(Long userId) {
+        log.debug("Deleting user with ID: {}", userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
+        userRepository.delete(user);
+        log.info("User deleted with ID: {}", userId);
+    }
+
+    private UserResponseDTO mapToResponse(User user) {
+        return UserResponseDTO.builder()
+                .id(user.getId())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .role(user.getRole())
+                .status(user.getStatus())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
+                .build();
+    }
+}
