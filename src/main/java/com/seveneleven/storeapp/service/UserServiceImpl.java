@@ -10,8 +10,11 @@ import com.seveneleven.storeapp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,6 +26,14 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     
+    private boolean isCallerAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return false;
+        
+        return auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
+
     @Override
     public UserResponseDTO createUser(UserRequestDTO requestDTO) {
         log.debug("Creating user with email: {}", requestDTO.getEmail());
@@ -31,16 +42,22 @@ public class UserServiceImpl implements UserService {
             throw new DuplicateEmailException("Email already registered: " + requestDTO.getEmail());
         }
 
+        String assignedRole = "CUSTOMER"; 
+        
+        if (isCallerAdmin() && requestDTO.getRole() != null) {
+            assignedRole = requestDTO.getRole().toUpperCase();
+        } else if (requestDTO.getRole() != null && requestDTO.getRole().equalsIgnoreCase("ADMIN")) {
+            log.warn("Unauthorized attempt to register an ADMIN account by: {}", requestDTO.getEmail());
+        }
+
         User user = User.builder()
                 .firstName(requestDTO.getFirstName())
                 .lastName(requestDTO.getLastName())
                 .email(requestDTO.getEmail())
                 .password(passwordEncoder.encode(requestDTO.getPassword()))
                 .phone(requestDTO.getPhone())
-                .role(requestDTO.getRole().toUpperCase())
-                .status(requestDTO.getStatus() != null
-                        ? requestDTO.getStatus().toUpperCase()
-                        : "ACTIVE")
+                .role(assignedRole)
+                .status(requestDTO.getStatus() != null ? requestDTO.getStatus().toUpperCase() : "ACTIVE")
                 .build();
 
         User saved = userRepository.save(user);
@@ -86,10 +103,14 @@ public class UserServiceImpl implements UserService {
         }
         
         user.setPhone(requestDTO.getPhone());
-        user.setRole(requestDTO.getRole().toUpperCase());
-        user.setStatus(requestDTO.getStatus() != null
-                ? requestDTO.getStatus().toUpperCase()
-                : user.getStatus());
+        
+        if (isCallerAdmin() && requestDTO.getRole() != null) {
+            user.setRole(requestDTO.getRole().toUpperCase());
+        } else if (requestDTO.getRole() != null && !user.getRole().equalsIgnoreCase(requestDTO.getRole())) {
+            log.warn("Unauthorized attempt: User {} attempted to change their own role to {}", user.getEmail(), requestDTO.getRole());
+        }
+
+        user.setStatus(requestDTO.getStatus() != null ? requestDTO.getStatus().toUpperCase() : user.getStatus());
 
         User updated = userRepository.save(user);
         log.info("User updated with ID: {}", updated.getId());

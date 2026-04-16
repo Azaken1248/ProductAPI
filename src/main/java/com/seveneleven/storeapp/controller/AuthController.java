@@ -32,7 +32,7 @@ public class AuthController {
         String jwt = jwtUtils.generateJwtToken(authentication);
 
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        String role = userDetails.getAuthorities().iterator().next().getAuthority();
+        String role = userDetails.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "");
 
         AuthResponseDTO response = AuthResponseDTO.builder()
                 .token(jwt)

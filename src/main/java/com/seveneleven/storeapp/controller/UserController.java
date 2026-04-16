@@ -34,21 +34,21 @@ public class UserController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or principal.id == #id") 
-    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or principal.id == #id") 
     public ResponseEntity<UserResponseDTO> updateUser(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody UserRequestDTO requestDTO) {
         return ResponseEntity.ok(userService.updateUser(id, requestDTO));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')") 
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteUser(@PathVariable("id") Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
