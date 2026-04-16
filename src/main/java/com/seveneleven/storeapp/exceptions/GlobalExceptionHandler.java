@@ -1,6 +1,7 @@
 package com.seveneleven.storeapp.exceptions;
 
 import org.springframework.http.*;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +33,11 @@ public class GlobalExceptionHandler {
         body.put("error", "Validation Failed");
         body.put("details", fieldErrors);
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        return buildResponse(HttpStatus.FORBIDDEN, "Access Denied: You do not have permission to access this resource.");
     }
 
     @ExceptionHandler(Exception.class)
