@@ -13,7 +13,6 @@ public class UserResponseDTO {
     private String firstName;
     private String lastName;
     private String email;
-    // password intentionally excluded
     private String phone;
     private String role;
     private String status;

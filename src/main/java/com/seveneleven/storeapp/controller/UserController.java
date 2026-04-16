@@ -6,8 +6,9 @@ import com.seveneleven.storeapp.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -16,42 +17,39 @@ import java.util.List;
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class UserController {
-	
-	@Autowired
-    private UserService userService;
+    
+    private final UserService userService;
 
-    // POST /api/users — Create user
     @PostMapping
     public ResponseEntity<UserResponseDTO> createUser(@Valid @RequestBody UserRequestDTO requestDTO) {
         UserResponseDTO response = userService.createUser(requestDTO);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
-    // GET /api/users — Get all users
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')") 
     public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
-    // GET /api/users/{id} — Get user by ID
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long id) {
+    @PreAuthorize("hasRole('ADMIN') or principal.id == #id") 
+    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
-    // PUT /api/users/{id} — Update user
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or principal.id == #id") 
     public ResponseEntity<UserResponseDTO> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody UserRequestDTO requestDTO) {
         return ResponseEntity.ok(userService.updateUser(id, requestDTO));
     }
 
-    // DELETE /api/users/{id} — Delete user
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')") 
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
-
 }
