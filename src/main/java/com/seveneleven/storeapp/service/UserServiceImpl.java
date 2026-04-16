@@ -6,12 +6,11 @@ import com.seveneleven.storeapp.model.dto.UserRequestDTO;
 import com.seveneleven.storeapp.model.dto.UserResponseDTO;
 import com.seveneleven.storeapp.model.entity.User;
 import com.seveneleven.storeapp.repository.UserRepository;
-import com.seveneleven.storeapp.utils.PasswordHasher;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -20,11 +19,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class UserServiceImpl implements UserService {
-	
-	@Autowired
-    private UserRepository userRepository;
     
-	
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    
     @Override
     public UserResponseDTO createUser(UserRequestDTO requestDTO) {
         log.debug("Creating user with email: {}", requestDTO.getEmail());
@@ -37,7 +35,7 @@ public class UserServiceImpl implements UserService {
                 .firstName(requestDTO.getFirstName())
                 .lastName(requestDTO.getLastName())
                 .email(requestDTO.getEmail())
-                .password(PasswordHasher.hashPasswordToSHA256(requestDTO.getPassword()))
+                .password(passwordEncoder.encode(requestDTO.getPassword()))
                 .phone(requestDTO.getPhone())
                 .role(requestDTO.getRole().toUpperCase())
                 .status(requestDTO.getStatus() != null
@@ -82,7 +80,11 @@ public class UserServiceImpl implements UserService {
         user.setFirstName(requestDTO.getFirstName());
         user.setLastName(requestDTO.getLastName());
         user.setEmail(requestDTO.getEmail());
-        user.setPassword(requestDTO.getPassword());
+        
+        if (requestDTO.getPassword() != null && !requestDTO.getPassword().trim().isEmpty()) {
+            user.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
+        }
+        
         user.setPhone(requestDTO.getPhone());
         user.setRole(requestDTO.getRole().toUpperCase());
         user.setStatus(requestDTO.getStatus() != null
