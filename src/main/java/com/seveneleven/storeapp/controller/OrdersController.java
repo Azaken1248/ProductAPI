@@ -9,11 +9,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,7 +31,7 @@ public class OrdersController {
         OrdersResponseDTO response = ordersService.createOrder(requestDTO);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or principal.id == #userId")
     @GetMapping
     public ResponseEntity<List<OrdersResponseDTO>> getAllOrders() {
         return ResponseEntity.ok(ordersService.getAllOrders());
@@ -45,7 +43,6 @@ public class OrdersController {
         return ResponseEntity.ok(ordersService.getOrdersByUserId(userId));
     }
     
-    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<OrdersResponseDTO> getOrderById(@PathVariable Long id) {
         return ResponseEntity.ok(ordersService.getOrderById(id));

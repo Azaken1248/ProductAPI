@@ -14,10 +14,8 @@ import com.seveneleven.storeapp.repository.OrdersRepository;
 import com.seveneleven.storeapp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -37,6 +35,8 @@ public class OrdersServiceImpl implements OrdersService {
     @Override
     @Transactional
     public OrdersResponseDTO createOrder(OrdersRequestDTO requestDTO) {
+    	verifyOwnershipOrAdmin(requestDTO.getUserId());
+    	
         User user = getActiveUser(requestDTO.getUserId());
 
         Orders order = Orders.builder()
@@ -78,6 +78,9 @@ public class OrdersServiceImpl implements OrdersService {
     public OrdersResponseDTO getOrderById(Long orderId) {
         Orders order = ordersRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with ID: " + orderId));
+        
+        verifyOwnershipOrAdmin(order.getUser().getId());
+        
         return mapToResponse(order);
     }
 
@@ -117,7 +120,7 @@ public class OrdersServiceImpl implements OrdersService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
         if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Inactive user cannot place an order");
+            throw new com.seveneleven.storeapp.exceptions.InactiveUserException("Inactive user cannot place an order");
         }
         return user;
     }
@@ -177,5 +180,17 @@ public class OrdersServiceImpl implements OrdersService {
             value = "ORD-" + timestamp + "-" + random;
         } while (ordersRepository.existsByOrderNumber(value));
         return value;
+    }
+    
+    private void verifyOwnershipOrAdmin(Long targetUserId) {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof com.seveneleven.storeapp.security.UserDetailsImpl) {
+            com.seveneleven.storeapp.security.UserDetailsImpl userDetails = (com.seveneleven.storeapp.security.UserDetailsImpl) auth.getPrincipal();
+            boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+            
+            if (!isAdmin && !userDetails.getId().equals(targetUserId)) {
+                throw new org.springframework.security.access.AccessDeniedException("IDOR Prevention: You cannot access or modify resources belonging to another user.");
+            }
+        }
     }
 }

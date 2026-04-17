@@ -60,6 +60,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> handleDuplicateSku(DuplicateSkuException ex) {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
     }
+    
+    @ExceptionHandler(InactiveUserException.class)
+    public ResponseEntity<Map<String, Object>> handleInactiveUser(InactiveUserException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         Map<String, Object> body = new LinkedHashMap<>();
