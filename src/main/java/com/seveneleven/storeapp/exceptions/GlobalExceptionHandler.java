@@ -55,6 +55,11 @@ public class GlobalExceptionHandler {
         ex.printStackTrace(); 
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong: " + ex.getMessage());
     }
+    
+    @ExceptionHandler(DuplicateSkuException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateSku(DuplicateSkuException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         Map<String, Object> body = new LinkedHashMap<>();
