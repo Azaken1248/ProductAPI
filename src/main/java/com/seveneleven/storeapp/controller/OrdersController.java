@@ -31,7 +31,7 @@ public class OrdersController {
         OrdersResponseDTO response = ordersService.createOrder(requestDTO);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or principal.id == #userId")
     @GetMapping
     public ResponseEntity<List<OrdersResponseDTO>> getAllOrders() {
         return ResponseEntity.ok(ordersService.getAllOrders());
@@ -43,7 +43,6 @@ public class OrdersController {
         return ResponseEntity.ok(ordersService.getOrdersByUserId(userId));
     }
     
-    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<OrdersResponseDTO> getOrderById(@PathVariable Long id) {
         return ResponseEntity.ok(ordersService.getOrderById(id));

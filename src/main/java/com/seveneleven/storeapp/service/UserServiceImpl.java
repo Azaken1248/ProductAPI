@@ -5,6 +5,7 @@ import com.seveneleven.storeapp.exceptions.ResourceNotFoundException;
 import com.seveneleven.storeapp.model.dto.UserRequestDTO;
 import com.seveneleven.storeapp.model.dto.UserResponseDTO;
 import com.seveneleven.storeapp.model.entity.User;
+import com.seveneleven.storeapp.repository.OrdersRepository;
 import com.seveneleven.storeapp.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,6 +27,7 @@ public class UserServiceImpl implements UserService {
     
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final OrdersRepository ordersRepository;
     
     private boolean isCallerAdmin() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -118,10 +121,17 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public void deleteUser(Long userId) {
         log.debug("Deleting user with ID: {}", userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
+        
+        java.util.List<com.seveneleven.storeapp.model.entity.Orders> userOrders = ordersRepository.findByUserId(userId);
+        if (!userOrders.isEmpty()) {
+            ordersRepository.deleteAll(userOrders);
+        }
+        
         userRepository.delete(user);
         log.info("User deleted with ID: {}", userId);
     }
