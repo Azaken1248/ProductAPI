@@ -8,13 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -31,7 +25,8 @@ public class OrdersController {
         OrdersResponseDTO response = ordersService.createOrder(requestDTO);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
-    @PreAuthorize("hasRole('ADMIN') or principal.id == #userId")
+
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<OrdersResponseDTO>> getAllOrders() {
         return ResponseEntity.ok(ordersService.getAllOrders());
@@ -48,4 +43,16 @@ public class OrdersController {
         return ResponseEntity.ok(ordersService.getOrderById(id));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}")
+    public ResponseEntity<OrdersResponseDTO> updateOrder(@PathVariable Long id, @Valid @RequestBody OrdersRequestDTO requestDTO) {
+        return ResponseEntity.ok(ordersService.updateOrder(id, requestDTO));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteOrder(@PathVariable Long id) {
+        ordersService.deleteOrder(id);
+        return ResponseEntity.noContent().build();
+    }
 }

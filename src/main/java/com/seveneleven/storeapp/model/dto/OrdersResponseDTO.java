@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,13 +15,13 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class OrdersResponseDTO {
-	private Long id;
-	private String orderNumber;
-	private Long userId;
-	private LocalDateTime orderDate;
-	private LocalDateTime createdAt;
-	private OrderStatus status;
-	private Double subtotalAmount;
-	private Double totalAmount;
-	private List<OrderItemResponseDTO> orderItems;
+    private Long id;
+    private String orderNumber;
+    private Long userId;
+    private LocalDateTime orderDate;
+    private LocalDateTime createdAt;
+    private OrderStatus status;
+    private BigDecimal subtotalAmount;
+    private BigDecimal totalAmount;
+    private List<OrderItemResponseDTO> orderItems;
 }

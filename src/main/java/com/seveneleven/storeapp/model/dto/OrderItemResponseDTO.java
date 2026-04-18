@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -13,6 +15,6 @@ public class OrderItemResponseDTO {
     private Long id;
     private Long productId;
     private int quantity;
-    private Double unitPrice;
-    private Double lineTotal;
+    private BigDecimal unitPrice;
+    private BigDecimal lineTotal;
 }

@@ -5,8 +5,10 @@ import com.seveneleven.storeapp.exceptions.ResourceNotFoundException;
 import com.seveneleven.storeapp.model.dto.UserRequestDTO;
 import com.seveneleven.storeapp.model.dto.UserResponseDTO;
 import com.seveneleven.storeapp.model.entity.User;
+import com.seveneleven.storeapp.model.entity.Notification;
 import com.seveneleven.storeapp.repository.OrdersRepository;
 import com.seveneleven.storeapp.repository.UserRepository;
+import com.seveneleven.storeapp.repository.NotificationRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +30,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final OrdersRepository ordersRepository;
+    private final NotificationRepository notificationRepository; 
     
     private boolean isCallerAdmin() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -127,7 +130,12 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
         
-        java.util.List<com.seveneleven.storeapp.model.entity.Orders> userOrders = ordersRepository.findByUserId(userId);
+        List<Notification> userNotifications = notificationRepository.findByUserId(userId);
+        if (!userNotifications.isEmpty()) {
+            notificationRepository.deleteAll(userNotifications);
+        }
+
+        List<com.seveneleven.storeapp.model.entity.Orders> userOrders = ordersRepository.findByUserId(userId);
         if (!userOrders.isEmpty()) {
             ordersRepository.deleteAll(userOrders);
         }

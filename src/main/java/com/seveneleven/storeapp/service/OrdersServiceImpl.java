@@ -1,14 +1,8 @@
 package com.seveneleven.storeapp.service;
 
 import com.seveneleven.storeapp.exceptions.ResourceNotFoundException;
-import com.seveneleven.storeapp.model.dto.OrderItemRequestDTO;
-import com.seveneleven.storeapp.model.dto.OrderItemResponseDTO;
-import com.seveneleven.storeapp.model.dto.OrdersRequestDTO;
-import com.seveneleven.storeapp.model.dto.OrdersResponseDTO;
-import com.seveneleven.storeapp.model.entity.OrderItem;
-import com.seveneleven.storeapp.model.entity.Orders;
-import com.seveneleven.storeapp.model.entity.OrderStatus;
-import com.seveneleven.storeapp.model.entity.User;
+import com.seveneleven.storeapp.model.dto.*;
+import com.seveneleven.storeapp.model.entity.*;
 import com.seveneleven.storeapp.repository.OrderItemRepository;
 import com.seveneleven.storeapp.repository.OrdersRepository;
 import com.seveneleven.storeapp.repository.UserRepository;
@@ -17,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -31,12 +26,13 @@ public class OrdersServiceImpl implements OrdersService {
     private final OrdersRepository ordersRepository;
     private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
     public OrdersResponseDTO createOrder(OrdersRequestDTO requestDTO) {
-    	verifyOwnershipOrAdmin(requestDTO.getUserId());
-    	
+        verifyOwnershipOrAdmin(requestDTO.getUserId());
+        
         User user = getActiveUser(requestDTO.getUserId());
 
         Orders order = Orders.builder()
@@ -44,43 +40,44 @@ public class OrdersServiceImpl implements OrdersService {
                 .user(user)
                 .orderDate(LocalDateTime.now())
                 .status(OrderStatus.PENDING)
-                .subtotalAmount(0.0)
-                .totalAmount(0.0)
+                .subtotalAmount(BigDecimal.ZERO)
+                .totalAmount(BigDecimal.ZERO)
                 .build();
 
         attachItems(order, requestDTO.getOrderItems());
-        double subtotal = calculateSubtotal(order.getOrderItems());
+        BigDecimal subtotal = calculateSubtotal(order.getOrderItems());
         order.setSubtotalAmount(subtotal);
         order.setTotalAmount(subtotal);
 
         Orders saved = ordersRepository.save(order);
+        
+        // NEW: Generate Checkout Notification
+        NotificationRequestDTO notifRequest = new NotificationRequestDTO();
+        notifRequest.setUserId(user.getId());
+        notifRequest.setType(NotificationType.CHECKOUT_CONFIRMATION);
+        notifRequest.setOrderId(saved.getId());
+        notifRequest.setMessage("Order " + saved.getOrderNumber() + " has been placed successfully.");
+        notificationService.create(notifRequest);
+
         log.info("Order created with ID: {}", saved.getId());
         return mapToResponse(saved);
     }
 
     @Override
     public List<OrdersResponseDTO> getAllOrders() {
-        return ordersRepository.findAll()
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return ordersRepository.findAll().stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
     @Override
     public List<OrdersResponseDTO> getOrdersByUserId(Long userId) {
-        return ordersRepository.findByUserId(userId)
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return ordersRepository.findByUserId(userId).stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
     @Override
     public OrdersResponseDTO getOrderById(Long orderId) {
         Orders order = ordersRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with ID: " + orderId));
-        
         verifyOwnershipOrAdmin(order.getUser().getId());
-        
         return mapToResponse(order);
     }
 
@@ -98,7 +95,7 @@ public class OrdersServiceImpl implements OrdersService {
         }
         order.getOrderItems().clear();
         attachItems(order, requestDTO.getOrderItems());
-        double subtotal = calculateSubtotal(order.getOrderItems());
+        BigDecimal subtotal = calculateSubtotal(order.getOrderItems());
         order.setSubtotalAmount(subtotal);
         order.setTotalAmount(subtotal);
 
@@ -132,7 +129,7 @@ public class OrdersServiceImpl implements OrdersService {
                     .productId(item.getProductId())
                     .quantity(item.getQuantity())
                     .unitPrice(item.getUnitPrice())
-                    .lineTotal(item.getQuantity() * item.getUnitPrice())
+                    .lineTotal(item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
                     .order(order)
                     .build();
             items.add(newItem);
@@ -140,10 +137,10 @@ public class OrdersServiceImpl implements OrdersService {
         order.setOrderItems(items);
     }
 
-    private double calculateSubtotal(List<OrderItem> items) {
+    private BigDecimal calculateSubtotal(List<OrderItem> items) {
         return items.stream()
-                .mapToDouble(item -> item.getQuantity() * item.getUnitPrice())
-                .sum();
+                .map(item -> item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private OrdersResponseDTO mapToResponse(Orders order) {

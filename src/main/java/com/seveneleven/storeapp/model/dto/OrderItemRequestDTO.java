@@ -8,6 +8,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,5 +23,5 @@ public class OrderItemRequestDTO {
 
     @NotNull(message = "Unit price is required")
     @DecimalMin(value = "0.0", inclusive = true, message = "Unit price must be non-negative")
-    private Double unitPrice;
+    private BigDecimal unitPrice;
 }
