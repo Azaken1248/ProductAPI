@@ -4,11 +4,14 @@ import com.seveneleven.storeapp.exceptions.DuplicateSkuException;
 import com.seveneleven.storeapp.exceptions.ResourceNotFoundException;
 import com.seveneleven.storeapp.model.dto.ProductRequestDTO;
 import com.seveneleven.storeapp.model.dto.ProductResponseDTO;
+import com.seveneleven.storeapp.model.entity.Notification;
 import com.seveneleven.storeapp.model.entity.Product;
+import com.seveneleven.storeapp.repository.NotificationRepository;
 import com.seveneleven.storeapp.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -19,6 +22,7 @@ import java.util.stream.Collectors;
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
+    private final NotificationRepository notificationRepository; 
 
     @Override
     public ProductResponseDTO createProduct(ProductRequestDTO requestDTO) {
@@ -91,14 +95,20 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @Transactional 
     public void deleteProduct(Long id) {
-        log.debug("Soft deleting product with ID: {}", id);
+        log.debug("Hard deleting product with ID: {}", id);
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with ID: " + id));
-        
-        product.setIsActive(false);
-        productRepository.save(product);
-        log.info("Successfully deactivated product ID: {}", id);
+
+        List<Notification> linkedNotifications = notificationRepository.findByProductId(id);
+        for (Notification notification : linkedNotifications) {
+            notification.setProduct(null);
+            notificationRepository.save(notification);
+        }
+
+        productRepository.delete(product);
+        log.info("Successfully physically deleted product ID: {}", id);
     }
 
     private ProductResponseDTO mapToResponseDTO(Product product) {

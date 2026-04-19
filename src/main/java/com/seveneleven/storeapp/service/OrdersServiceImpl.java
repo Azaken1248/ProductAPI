@@ -3,8 +3,8 @@ package com.seveneleven.storeapp.service;
 import com.seveneleven.storeapp.exceptions.ResourceNotFoundException;
 import com.seveneleven.storeapp.model.dto.*;
 import com.seveneleven.storeapp.model.entity.*;
-import com.seveneleven.storeapp.repository.OrderItemRepository;
 import com.seveneleven.storeapp.repository.OrdersRepository;
+import com.seveneleven.storeapp.repository.ProductRepository;
 import com.seveneleven.storeapp.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,15 +24,15 @@ import java.util.stream.Collectors;
 public class OrdersServiceImpl implements OrdersService {
 
     private final OrdersRepository ordersRepository;
-    private final OrderItemRepository orderItemRepository;
     private final UserRepository userRepository;
+    private final ProductRepository productRepository;
     private final NotificationService notificationService;
+    private final InventoryService inventoryService;
 
     @Override
     @Transactional
     public OrdersResponseDTO createOrder(OrdersRequestDTO requestDTO) {
         verifyOwnershipOrAdmin(requestDTO.getUserId());
-        
         User user = getActiveUser(requestDTO.getUserId());
 
         Orders order = Orders.builder()
@@ -44,14 +44,38 @@ public class OrdersServiceImpl implements OrdersService {
                 .totalAmount(BigDecimal.ZERO)
                 .build();
 
-        attachItems(order, requestDTO.getOrderItems());
-        BigDecimal subtotal = calculateSubtotal(order.getOrderItems());
+        List<OrderItem> items = new ArrayList<>();
+        BigDecimal subtotal = BigDecimal.ZERO;
+
+        for (OrderItemRequestDTO itemDTO : requestDTO.getOrderItems()) {
+            Product product = productRepository.findById(itemDTO.getProductId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found with ID: " + itemDTO.getProductId()));
+            
+            if (!Boolean.TRUE.equals(product.getIsActive())) {
+                throw new IllegalArgumentException("Product is inactive and cannot be ordered: " + product.getSku());
+            }
+
+            inventoryService.reduceStock(product.getId(), itemDTO.getQuantity());
+
+            BigDecimal lineTotal = product.getPrice().multiply(BigDecimal.valueOf(itemDTO.getQuantity()));
+            subtotal = subtotal.add(lineTotal);
+
+            OrderItem newItem = OrderItem.builder()
+                    .product(product) 
+                    .quantity(itemDTO.getQuantity())
+                    .unitPrice(product.getPrice())
+                    .lineTotal(lineTotal)
+                    .order(order)
+                    .build();
+            items.add(newItem);
+        }
+
+        order.setOrderItems(items);
         order.setSubtotalAmount(subtotal);
         order.setTotalAmount(subtotal);
 
         Orders saved = ordersRepository.save(order);
         
-        // NEW: Generate Checkout Notification
         NotificationRequestDTO notifRequest = new NotificationRequestDTO();
         notifRequest.setUserId(user.getId());
         notifRequest.setType(NotificationType.CHECKOUT_CONFIRMATION);
@@ -84,24 +108,7 @@ public class OrdersServiceImpl implements OrdersService {
     @Override
     @Transactional
     public OrdersResponseDTO updateOrder(Long orderId, OrdersRequestDTO requestDTO) {
-        Orders order = ordersRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order not found with ID: " + orderId));
-
-        User user = getActiveUser(requestDTO.getUserId());
-        order.setUser(user);
-
-        if (!order.getOrderItems().isEmpty()) {
-            orderItemRepository.deleteAll(order.getOrderItems());
-        }
-        order.getOrderItems().clear();
-        attachItems(order, requestDTO.getOrderItems());
-        BigDecimal subtotal = calculateSubtotal(order.getOrderItems());
-        order.setSubtotalAmount(subtotal);
-        order.setTotalAmount(subtotal);
-
-        Orders updated = ordersRepository.save(order);
-        log.info("Order updated with ID: {}", updated.getId());
-        return mapToResponse(updated);
+        throw new UnsupportedOperationException("Order modification after placement is restricted to preserve inventory integrity.");
     }
 
     @Override
@@ -120,27 +127,6 @@ public class OrdersServiceImpl implements OrdersService {
             throw new com.seveneleven.storeapp.exceptions.InactiveUserException("Inactive user cannot place an order");
         }
         return user;
-    }
-
-    private void attachItems(Orders order, List<OrderItemRequestDTO> requestedItems) {
-        List<OrderItem> items = new ArrayList<>();
-        for (OrderItemRequestDTO item : requestedItems) {
-            OrderItem newItem = OrderItem.builder()
-                    .productId(item.getProductId())
-                    .quantity(item.getQuantity())
-                    .unitPrice(item.getUnitPrice())
-                    .lineTotal(item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
-                    .order(order)
-                    .build();
-            items.add(newItem);
-        }
-        order.setOrderItems(items);
-    }
-
-    private BigDecimal calculateSubtotal(List<OrderItem> items) {
-        return items.stream()
-                .map(item -> item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private OrdersResponseDTO mapToResponse(Orders order) {
@@ -162,7 +148,7 @@ public class OrdersServiceImpl implements OrdersService {
     private OrderItemResponseDTO mapToItemResponse(OrderItem item) {
         return OrderItemResponseDTO.builder()
                 .id(item.getId())
-                .productId(item.getProductId())
+                .productId(item.getProduct().getId()) 
                 .quantity(item.getQuantity())
                 .unitPrice(item.getUnitPrice())
                 .lineTotal(item.getLineTotal())

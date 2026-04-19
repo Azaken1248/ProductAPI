@@ -26,9 +26,9 @@ public class OrderItem {
     @JoinColumn(name = "order_id", nullable = false)
     private Orders order;
 
-    @NotNull(message = "Product id is required")
-    @Column(name = "product_id", nullable = false)
-    private Long productId;
+    @ManyToOne
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
 
     @Positive(message = "Quantity must be greater than zero")
     @Column(name = "quantity", nullable = false)

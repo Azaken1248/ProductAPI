@@ -20,7 +20,7 @@ public class OrderItemServiceImpl implements OrderItemService {
                 .stream()
                 .map(item -> OrderItemResponseDTO.builder()
                         .id(item.getId())
-                        .productId(item.getProductId())
+                        .productId(item.getProduct().getId()) 
                         .quantity(item.getQuantity())
                         .unitPrice(item.getUnitPrice())
                         .lineTotal(item.getLineTotal())

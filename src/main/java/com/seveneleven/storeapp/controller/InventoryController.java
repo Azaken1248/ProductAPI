@@ -72,4 +72,11 @@ public class InventoryController {
         return ResponseEntity.ok(
                 inventoryService.getLowStockItems());
     }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteInventory(@PathVariable Long id) {
+        inventoryService.deleteInventory(id);
+        return ResponseEntity.noContent().build();
+    }
 }
