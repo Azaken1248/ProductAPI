@@ -30,7 +30,7 @@ public class ProductController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProductResponseDTO>> getAllProducts(
+    public ResponseEntity<List<ProductResponseDTO>> geñtAllProducts(
             @RequestParam(required = false, defaultValue = "false") boolean includeInactive) {
         
         if (includeInactive) {
